@@ -550,17 +550,16 @@ impl Updater<'_> {
             format!("-{}", max_commits)
         };
 
-        // Use git log to get all commits
-        // Use --first-parent to only follow the main branch history and avoid
-        // including commits from merged release PR branches
+        // Use git log to get all commits (without --first-parent to include commits
+        // from all branches that were merged, e.g., via `git pull` merge commits)
         let output = repository.git(&[
             "log",
             &commit_range,
-            "--first-parent",
             "--format=%H%n%s%n%b%n--END-COMMIT--",
         ])?;
 
         let mut commits = Vec::new();
+        let mut seen_hashes = std::collections::HashSet::new();
         let commit_strings: Vec<&str> = output.split("--END-COMMIT--").collect();
 
         for commit_str in commit_strings {
@@ -571,8 +570,21 @@ impl Updater<'_> {
 
             let mut lines = commit_str.lines();
             if let Some(hash) = lines.next() {
+                // Skip duplicate commits (can occur when traversing merge commits)
+                if !seen_hashes.insert(hash.to_string()) {
+                    continue;
+                }
+
                 // Collect subject and body
                 let message: String = lines.collect::<Vec<_>>().join("\n");
+
+                // Skip release PR commits (version bumps created by k-releaser or similar tools)
+                // These commits are already part of a previous release and shouldn't be counted again
+                if is_release_pr_commit(&message) {
+                    debug!("skipping release PR commit: {}", hash);
+                    continue;
+                }
+
                 commits.push(Commit::new(hash.to_string(), message));
             }
         }
@@ -584,6 +596,33 @@ impl Updater<'_> {
         );
         Ok(commits)
     }
+}
+
+/// Check if a commit message indicates it's a release PR commit.
+/// These are commits created by k-releaser (or similar tools like release-plz)
+/// that bump versions or update changelogs. They should be skipped when
+/// calculating the next version to avoid double-counting.
+fn is_release_pr_commit(message: &str) -> bool {
+    let first_line = message.lines().next().unwrap_or("");
+    let lower = first_line.to_lowercase();
+
+    // Common patterns for release PR commits:
+    // - "chore: release v1.2.3" or "chore: release 1.2.3"
+    // - "chore: release v1.2.3 (#123)"
+    // - "chore(release): v1.2.3"
+    // - "chore: update version in Cargo.toml"
+    // - "chore: update workspace versions"
+    // - "chore: bump version to 1.2.3"
+    if lower.starts_with("chore: release")
+        || lower.starts_with("chore(release)")
+        || lower.starts_with("chore: update version")
+        || lower.starts_with("chore: update workspace version")
+        || lower.starts_with("chore: bump version")
+    {
+        return true;
+    }
+
+    false
 }
 
 /// Check if commit belongs to a previous version of the package.
@@ -863,5 +902,26 @@ mod tests {
         )
         .unwrap();
         assert_eq!(old, new.0);
+    }
+
+    #[test]
+    fn release_pr_commits_are_detected() {
+        // Should be detected as release PR commits
+        assert!(is_release_pr_commit("chore: release v1.2.3"));
+        assert!(is_release_pr_commit("chore: release 1.2.3"));
+        assert!(is_release_pr_commit("chore: release v5.11.0 (#945)"));
+        assert!(is_release_pr_commit("Chore: Release v1.0.0")); // case insensitive
+        assert!(is_release_pr_commit("chore(release): v1.2.3"));
+        assert!(is_release_pr_commit("chore: update version in Cargo.toml"));
+        assert!(is_release_pr_commit("chore: update workspace versions"));
+        assert!(is_release_pr_commit("chore: bump version to 1.2.3"));
+
+        // Should NOT be detected as release PR commits
+        assert!(!is_release_pr_commit("feat: add new feature"));
+        assert!(!is_release_pr_commit("fix: bug fix"));
+        assert!(!is_release_pr_commit("chore: update dependencies"));
+        assert!(!is_release_pr_commit("chore: clean up code"));
+        assert!(!is_release_pr_commit("ci: update release workflow"));
+        assert!(!is_release_pr_commit("docs: update changelog"));
     }
 }
