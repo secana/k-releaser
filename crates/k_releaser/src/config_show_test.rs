@@ -4,6 +4,7 @@ use crate::config_show::{
 };
 
 #[test]
+#[allow(clippy::field_reassign_with_default)]
 fn extract_workspace_defaults_with_all_fields() {
     let mut defaults = PackageConfig::default();
     defaults.changelog_path = Some("CHANGELOG.md".into());
@@ -28,7 +29,10 @@ fn extract_workspace_defaults_with_all_fields() {
     assert_eq!(display.changelog_update, Some(true));
     assert_eq!(display.features_always_increment_minor, Some(true));
     assert_eq!(display.git_release_enable, Some(true));
-    assert_eq!(display.git_release_body, Some("{{ changelog }}".to_string()));
+    assert_eq!(
+        display.git_release_body,
+        Some("{{ changelog }}".to_string())
+    );
     assert_eq!(display.git_release_draft, Some(true));
     assert_eq!(display.git_release_latest, Some(false));
     assert_eq!(
@@ -39,10 +43,7 @@ fn extract_workspace_defaults_with_all_fields() {
     assert_eq!(display.git_tag_name, Some("v{{ version }}".to_string()));
     assert_eq!(display.publish_allow_dirty, Some(true));
     assert_eq!(display.publish_no_verify, Some(true));
-    assert_eq!(
-        display.publish_features,
-        Some(vec!["feature1".to_string()])
-    );
+    assert_eq!(display.publish_features, Some(vec!["feature1".to_string()]));
     assert_eq!(display.publish_all_features, Some(true));
     assert_eq!(display.semver_check, Some(false));
 }
@@ -96,7 +97,7 @@ fn extract_workspace_overrides_with_all_fields() {
     assert_eq!(display.dependencies_update, Some(true));
     assert_eq!(display.pr_name, Some("Release PR".to_string()));
     assert_eq!(display.pr_body, Some("Release body".to_string()));
-    assert_eq!(display.pr_draft, true);
+    assert!(display.pr_draft);
     assert_eq!(display.pr_labels, vec!["release".to_string()]);
     assert_eq!(display.pr_branch_prefix, Some("release-".to_string()));
     assert_eq!(display.publish_timeout, Some("30m".to_string()));
@@ -110,6 +111,7 @@ fn extract_workspace_overrides_with_all_fields() {
 }
 
 #[test]
+#[allow(clippy::field_reassign_with_default)]
 fn extract_explicit_overrides_with_all_fields() {
     let mut config = PackageConfig::default();
     config.changelog_path = Some("CHANGELOG.md".into());
@@ -130,19 +132,31 @@ fn extract_explicit_overrides_with_all_fields() {
 
     let overrides = extract_explicit_overrides(&config);
 
-    assert_eq!(overrides.get("changelog_path"), Some(&"CHANGELOG.md".to_string()));
+    assert_eq!(
+        overrides.get("changelog_path"),
+        Some(&"CHANGELOG.md".to_string())
+    );
     assert_eq!(overrides.get("changelog_update"), Some(&"true".to_string()));
     assert_eq!(
         overrides.get("features_always_increment_minor"),
         Some(&"true".to_string())
     );
-    assert_eq!(overrides.get("git_release_enable"), Some(&"true".to_string()));
+    assert_eq!(
+        overrides.get("git_release_enable"),
+        Some(&"true".to_string())
+    );
     assert_eq!(
         overrides.get("git_release_body"),
         Some(&"{{ changelog }}".to_string())
     );
-    assert_eq!(overrides.get("git_release_draft"), Some(&"true".to_string()));
-    assert_eq!(overrides.get("git_release_latest"), Some(&"false".to_string()));
+    assert_eq!(
+        overrides.get("git_release_draft"),
+        Some(&"true".to_string())
+    );
+    assert_eq!(
+        overrides.get("git_release_latest"),
+        Some(&"false".to_string())
+    );
     assert_eq!(
         overrides.get("git_release_name"),
         Some(&"Release {{ version }}".to_string())
@@ -156,7 +170,10 @@ fn extract_explicit_overrides_with_all_fields() {
         overrides.get("publish_allow_dirty"),
         Some(&"true".to_string())
     );
-    assert_eq!(overrides.get("publish_no_verify"), Some(&"true".to_string()));
+    assert_eq!(
+        overrides.get("publish_no_verify"),
+        Some(&"true".to_string())
+    );
     assert_eq!(
         overrides.get("publish_features"),
         Some(&"[\"feature1\"]".to_string())

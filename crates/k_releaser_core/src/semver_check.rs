@@ -34,8 +34,8 @@ pub enum SemverCheck {
 impl SemverCheck {
     pub fn outcome_str(&self) -> &'static str {
         match self {
-            Self::Compatible => " (✓ API compatible changes)",
-            Self::Incompatible(_) => " (⚠️ API breaking changes)",
+            Self::Compatible => " (API compatible changes)",
+            Self::Incompatible(_) => " (API breaking changes)",
             Self::Skipped => "",
         }
     }

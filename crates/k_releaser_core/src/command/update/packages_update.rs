@@ -74,7 +74,7 @@ impl PackagesUpdate {
             .map(|(package, update)| match &update.semver_check {
                 SemverCheck::Incompatible(incompatibilities) => {
                     format!(
-                        "\n### ⚠️ `{}` breaking changes\n\n```{}```\n",
+                        "\n### `{}` breaking changes\n\n```{}```\n",
                         package.name, incompatibilities
                     )
                 }

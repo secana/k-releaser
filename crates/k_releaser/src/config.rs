@@ -6,7 +6,6 @@ use k_releaser_core::{
     fs_utils::to_utf8_path,
     update_request::{DEFAULT_MAX_ANALYZE_COMMITS, UpdateRequest},
 };
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 use url::Url;
@@ -14,10 +13,9 @@ use url::Url;
 use crate::changelog_config::ChangelogCfg;
 
 /// You can find the documentation of the configuration file
-/// [here](https://release-plz.dev/docs/config).
-#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, JsonSchema)]
+/// [here](https://github.com/secana/k-releaser/blob/main/CONFIGURATION.md).
+#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug)]
 #[serde(deny_unknown_fields)]
-#[schemars(extend("$id" = "https://raw.githubusercontent.com/release-plz/release-plz/main/.schema/latest.json"))]
 pub struct Config {
     /// # Workspace
     /// Global configuration. Applied to all packages by default.
@@ -130,7 +128,7 @@ impl Config {
 }
 
 /// Config at the `[workspace]` level.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Workspace {
     /// Configuration applied at the `[[package]]` level, too.
@@ -148,10 +146,10 @@ pub struct Workspace {
     /// - If `false` or [`Option::None`], only update the workspace packages by running `cargo update --workspace`.
     pub dependencies_update: Option<bool>,
     /// # PR Name
-    /// Tera template of the pull request's name created by release-plz.
+    /// Tera template of the pull request's name created by k-releaser.
     pub pr_name: Option<String>,
     /// # PR Body
-    /// Tera template of the pull request's body created by release-plz.
+    /// Tera template of the pull request's body created by k-releaser.
     pub pr_body: Option<String>,
     /// # PR Draft
     /// If `true`, the created release PR will be marked as a draft.
@@ -176,19 +174,18 @@ pub struct Workspace {
     /// Prepare release only if at least one commit respects this regex.
     pub release_commits: Option<String>,
     /// # Release always
-    /// - If true, release-plz release will try to release your packages every time you run it
+    /// - If true, k-releaser release will try to release your packages every time you run it
     ///   (e.g. on every commit in the main branch). *(Default)*.
-    /// - If false, `release-plz release` will try release your packages only when you merge the
+    /// - If false, `k-releaser release` will try release your packages only when you merge the
     ///   release pr.
     ///   Use this if you want to commit your packages and publish them later.
-    ///   To determine if a pr is a release-pr, release-plz will check if the branch of the PR starts with
-    ///   `release-plz-`. So if you want to create a PR that should trigger a release
-    ///   (e.g. when you fix the CI), use this branch name format (e.g. `release-plz-fix-ci`).
+    ///   To determine if a pr is a release-pr, k-releaser will check if the branch of the PR starts with
+    ///   `k-releaser-`. So if you want to create a PR that should trigger a release
+    ///   (e.g. when you fix the CI), use this branch name format (e.g. `k-releaser-fix-ci`).
     pub release_always: Option<bool>,
     /// Maximum number of commits to analyze when the package hasn't been published yet.
     /// Default: 1000.
     #[serde(default = "default_max_analyze_commits")]
-    #[schemars(default = "default_max_analyze_commits")]
     pub max_analyze_commits: Option<u32>,
 }
 
@@ -268,7 +265,7 @@ fn parse_duration_unit(input: &str) -> anyhow::Result<(&str, DurationUnit)> {
 }
 
 /// Config at the `[[package]]` level.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PackageSpecificConfig {
     /// Configuration that can be specified at the `[workspace]` level, too.
@@ -299,7 +296,7 @@ impl PackageSpecificConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct PackageSpecificConfigWithName {
     pub name: String,
     #[serde(flatten)]
@@ -382,7 +379,7 @@ fn git_release(config: &PackageConfig) -> GitReleaseConfig {
 }
 
 /// Configuration that can be specified both at the `[workspace]` and at the `[[package]]` level.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Default, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Default, Clone)]
 pub struct PackageConfig {
     /// # Changelog Path
     /// Normally the changelog is placed in the same directory of the Cargo.toml file.
@@ -404,7 +401,7 @@ pub struct PackageConfig {
     /// Enabled by default.
     pub git_release_enable: Option<bool>,
     /// # Git Release Body
-    /// Tera template of the git release body created by release-plz.
+    /// Tera template of the git release body created by k-releaser.
     pub git_release_body: Option<String>,
     /// # Git Release Type
     /// Whether to mark the created release as not ready for production.
@@ -416,14 +413,14 @@ pub struct PackageConfig {
     /// If true, will set the git release as latest.
     pub git_release_latest: Option<bool>,
     /// # Git Release Name
-    /// Tera template of the git release name created by release-plz.
+    /// Tera template of the git release name created by k-releaser.
     pub git_release_name: Option<String>,
     /// # Git Tag Enable
     /// Publish the git tag for the new package version.
     /// Enabled by default.
     pub git_tag_enable: Option<bool>,
     /// # Git Tag Name
-    /// Tera template of the git tag name created by release-plz.
+    /// Tera template of the git tag name created by k-releaser.
     pub git_tag_name: Option<String>,
     /// # Publish Allow Dirty
     /// If `true`, add the `--allow-dirty` flag to the `cargo publish` command.
@@ -497,7 +494,7 @@ impl PackageConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone, Copy, JsonSchema)]
+#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum ReleaseType {
     /// # Prod
@@ -534,7 +531,7 @@ mod tests {
         dependencies_update = false
         allow_dirty = false
         changelog_config = "../git-cliff.toml"
-        repo_url = "https://github.com/release-plz/release-plz"
+        repo_url = "https://github.com/k-releaser/k-releaser"
         git_release_enable = true
         git_release_type = "prod"
         git_release_draft = false
@@ -550,11 +547,7 @@ mod tests {
                 dependencies_update: Some(false),
                 changelog_config: Some("../git-cliff.toml".into()),
                 allow_dirty: Some(false),
-                repo_url: Some(
-                    "https://github.com/release-plz/release-plz"
-                        .parse()
-                        .unwrap(),
-                ),
+                repo_url: Some("https://github.com/k-releaser/k-releaser".parse().unwrap()),
                 packages_defaults: PackageConfig {
                     semver_check: None,
                     changelog_update: None,
@@ -607,11 +600,7 @@ mod tests {
                 dependencies_update: None,
                 changelog_config: Some("../git-cliff.toml".into()),
                 allow_dirty: None,
-                repo_url: Some(
-                    "https://github.com/release-plz/release-plz"
-                        .parse()
-                        .unwrap(),
-                ),
+                repo_url: Some("https://github.com/k-releaser/k-releaser".parse().unwrap()),
                 pr_name: None,
                 pr_body: None,
                 pr_draft: false,
@@ -661,7 +650,7 @@ mod tests {
             pr_labels = ["label1"]
             pr_branch_prefix = "f-"
             publish_timeout = "10m"
-            repo_url = "https://github.com/release-plz/release-plz"
+            repo_url = "https://github.com/k-releaser/k-releaser"
             release_commits = "^feat:"
             max_analyze_commits = 1000
 

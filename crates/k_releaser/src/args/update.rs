@@ -3,10 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use cargo_metadata::camino::Utf8Path;
 use chrono::NaiveDate;
-use clap::{
-    ValueEnum,
-    builder::{NonEmptyStringValueParser, PathBufValueParser},
-};
+use clap::builder::{NonEmptyStringValueParser, PathBufValueParser};
 use git_cliff_core::config::Config as GitCliffConfig;
 use k_releaser_core::{
     ChangelogRequest, GitForge, GitHub, GitLab, Gitea, RepoUrl, fs_utils::to_utf8_path,
@@ -17,16 +14,17 @@ use secrecy::SecretString;
 use crate::{changelog_config, config::Config};
 
 use super::{
-    config_path::ConfigPath, manifest_command::ManifestCommand, repo_command::RepoCommand,
+    GitForgeKind, config_path::ConfigPath, manifest_command::ManifestCommand,
+    repo_command::RepoCommand,
 };
 
 /// Update your project locally, without opening a PR.
-/// If `repo_url` contains a GitHub URL, release-plz uses it to add a release
+/// If `repo_url` contains a GitHub URL, k-releaser uses it to add a release
 /// link in the changelog.
 #[derive(clap::Parser, Debug)]
 pub struct Update {
     /// Path to the Cargo.toml of the project you want to update.
-    /// If not provided, release-plz will use the Cargo.toml of the current directory.
+    /// If not provided, k-releaser will use the Cargo.toml of the current directory.
     /// Both Cargo workspaces and single packages are supported.
     #[arg(long, value_parser = PathBufValueParser::new(), alias = "project-manifest")]
     manifest_path: Option<PathBuf>,
@@ -100,7 +98,7 @@ pub struct Update {
     #[arg(long, value_parser = NonEmptyStringValueParser::new())]
     repo_url: Option<String>,
 
-    /// Path to the release-plz config file.
+    /// Path to the k-releaser config file.
     #[command(flatten)]
     pub config: ConfigPath,
 
@@ -115,16 +113,6 @@ pub struct Update {
     /// Default: 1000.
     #[arg(long)]
     max_analyze_commits: Option<u32>,
-}
-
-#[derive(ValueEnum, Clone, Copy, Debug, Eq, PartialEq)]
-pub enum GitForgeKind {
-    #[value(name = "github")]
-    Github,
-    #[value(name = "gitea")]
-    Gitea,
-    #[value(name = "gitlab")]
-    Gitlab,
 }
 
 impl RepoCommand for Update {

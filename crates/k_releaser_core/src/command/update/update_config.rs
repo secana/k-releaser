@@ -16,7 +16,7 @@ pub struct UpdateConfig {
     /// - If `true`, feature commits will always bump the minor version, even in 0.x releases.
     /// - If `false` (default), feature commits will only bump the minor version starting with 1.x releases.
     pub features_always_increment_minor: bool,
-    /// Template for the git tag created by release-plz.
+    /// Template for the git tag created by k-releaser.
     pub tag_name_template: Option<String>,
 }
 

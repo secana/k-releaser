@@ -169,10 +169,10 @@ pub struct ReleaseConfig {
     git_release: GitReleaseConfig,
     git_tag: GitTagConfig,
     /// Don't verify the contents by building them.
-    /// If true, `release-plz` adds the `--no-verify` flag to `cargo publish`.
+    /// If true, `k-releaser` adds the `--no-verify` flag to `cargo publish`.
     no_verify: bool,
     /// Allow dirty working directories to be packaged.
-    /// If true, `release-plz` adds the `--allow-dirty` flag to `cargo publish`.
+    /// If true, `k-releaser` adds the `--allow-dirty` flag to `cargo publish`.
     allow_dirty: bool,
     /// Features to be enabled when packaging the crate.
     /// If non-empty, pass the `--features` flag to `cargo publish`.
@@ -181,7 +181,7 @@ pub struct ReleaseConfig {
     /// If true, pass the `--all-features` flag to `cargo publish`.
     all_features: bool,
     changelog_path: Option<Utf8PathBuf>,
-    /// Whether this package has a changelog that release-plz updates or not.
+    /// Whether this package has a changelog that k-releaser updates or not.
     /// Default: `true`.
     changelog_update: bool,
 }
@@ -397,7 +397,7 @@ pub struct Release {
 pub struct PackageRelease {
     package_name: String,
     prs: Vec<Pr>,
-    /// Git tag name. It's not guaranteed that release-plz created the git tag.
+    /// Git tag name. It's not guaranteed that k-releaser created the git tag.
     /// In fact, users can disable git tag creation in the [`ReleaseRequest`].
     /// We return the git tag name anyway, because users might use it to create
     /// the tag by themselves.
@@ -450,7 +450,7 @@ pub async fn release(input: &ReleaseRequest) -> anyhow::Result<Option<Release>> 
 
     if let ShouldRelease::YesWithCommit(_) = should_release {
         // Go back to the previous commit so that the user finds
-        // the repository in the same commit they launched release-plz.
+        // the repository in the same commit they launched k-releaser.
         if checkout_done {
             repo.checkout("-")?;
             trace!("restored previous commit after release");
@@ -512,14 +512,14 @@ async fn get_workspace_changelog_entry(
         .iter()
         .find(|pr| pr.branch().starts_with(&input.branch_prefix));
 
-    if let Some(pr) = release_pr {
-        if let Some(body) = &pr.body {
-            // Extract changelog from PR body
-            // The PR body contains the changelog generated from git history
-            let changelog = extract_changelog_from_pr_body(body);
-            debug!("Using changelog from release PR #{}", pr.number);
-            return Ok(changelog);
-        }
+    if let Some(pr) = release_pr
+        && let Some(body) = &pr.body
+    {
+        // Extract changelog from PR body
+        // The PR body contains the changelog generated from git history
+        let changelog = extract_changelog_from_pr_body(body);
+        debug!("Using changelog from release PR #{}", pr.number);
+        return Ok(changelog);
     }
 
     warn!("No release PR found or PR has no body. Release will have empty body.");
@@ -530,14 +530,14 @@ async fn get_workspace_changelog_entry(
 /// The PR body has changelog in <details><summary>Changelog</summary>...</details>
 fn extract_changelog_from_pr_body(pr_body: &str) -> String {
     // Look for content between <details> tags
-    if let Some(start) = pr_body.find("<details>") {
-        if let Some(end) = pr_body[start..].find("</details>") {
-            let details_content = &pr_body[start..start + end];
-            // Skip the <details> and <summary> tags to get just the changelog content
-            if let Some(summary_end) = details_content.find("</summary>") {
-                let changelog = &details_content[summary_end + "</summary>".len()..];
-                return changelog.trim().to_string();
-            }
+    if let Some(start) = pr_body.find("<details>")
+        && let Some(end) = pr_body[start..].find("</details>")
+    {
+        let details_content = &pr_body[start..start + end];
+        // Skip the <details> and <summary> tags to get just the changelog content
+        if let Some(summary_end) = details_content.find("</summary>") {
+            let changelog = &details_content[summary_end + "</summary>".len()..];
+            return changelog.trim().to_string();
         }
     }
 
@@ -592,7 +592,11 @@ async fn release_unified_workspace(
 
     if was_released {
         let package_names: Vec<String> = packages.iter().map(|p| p.name.to_string()).collect();
-        info!("Released workspace version {} for packages: {}", version, package_names.join(", "));
+        info!(
+            "Released workspace version {} for packages: {}",
+            version,
+            package_names.join(", ")
+        );
 
         // Return a single PackageRelease representing the unified workspace
         Ok(Some(Release {
@@ -925,7 +929,7 @@ mod tests {
     #[test]
     fn test_extract_changelog_from_pr_body() {
         let pr_body = r#"
-## 🤖 New release v0.1.1
+## New release v0.1.1
 
 This release updates all workspace packages to version **0.1.1**.
 
@@ -950,7 +954,7 @@ This release updates all workspace packages to version **0.1.1**.
 
 
 ---
-🤖 Generated by k-releaser"#;
+Generated by k-releaser"#;
 
         let changelog = extract_changelog_from_pr_body(pr_body);
         assert!(changelog.contains("### Fixed"));

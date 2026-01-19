@@ -66,17 +66,19 @@ impl ConfigDisplay {
         output.push_str("=== Workspace Defaults ===\n");
         output.push_str("(These apply to all packages unless overridden)\n\n");
         output.push_str(&format_option_fields(&self.workspace_defaults));
-        output.push_str("\n");
+        output.push('\n');
 
         output.push_str("=== Workspace-Specific Settings ===\n");
         output.push_str("(These don't apply to individual packages)\n\n");
         output.push_str(&format_workspace_overrides(&self.workspace_overrides));
-        output.push_str("\n");
+        output.push('\n');
 
         output.push_str("=== Package Configurations ===\n");
         output.push_str("(Only showing packages with explicit overrides)\n\n");
 
-        let packages_with_overrides: Vec<_> = self.packages.iter()
+        let packages_with_overrides: Vec<_> = self
+            .packages
+            .iter()
             .filter(|pkg| !pkg.explicit_overrides.is_empty())
             .collect();
 
@@ -90,7 +92,7 @@ impl ConfigDisplay {
                 for (key, value) in &pkg.explicit_overrides {
                     output.push_str(&format!("    {}: {}\n", key, value));
                 }
-                output.push_str("\n");
+                output.push('\n');
             }
         }
 
@@ -197,10 +199,10 @@ fn format_workspace_overrides(overrides: &WorkspaceOverridesDisplay) -> String {
         output.push_str(&format!("  release_always: {}\n", val));
     }
     // Don't show max_analyze_commits if it's the default value
-    if let Some(val) = overrides.max_analyze_commits {
-        if val != 1000 {
-            output.push_str(&format!("  max_analyze_commits: {}\n", val));
-        }
+    if let Some(val) = overrides.max_analyze_commits
+        && val != 1000
+    {
+        output.push_str(&format!("  max_analyze_commits: {}\n", val));
     }
 
     if output.is_empty() {
@@ -221,8 +223,7 @@ pub fn show_config(args: ShowConfig) -> anyhow::Result<()> {
 
     // Load workspace metadata to get package info
     let metadata = args.cargo_metadata()?;
-    let workspace_packages = cargo_utils::workspace_members(&metadata)?
-        .collect::<Vec<_>>();
+    let workspace_packages = cargo_utils::workspace_members(&metadata)?.collect::<Vec<_>>();
 
     // Filter to specific package if requested
     let packages = if let Some(pkg_name) = &args.package {
@@ -283,12 +284,18 @@ fn build_config_display(
 
 pub(crate) fn extract_workspace_defaults(defaults: &PackageConfig) -> WorkspaceDefaultsDisplay {
     WorkspaceDefaultsDisplay {
-        changelog_path: defaults.changelog_path.as_ref().map(|p| p.display().to_string()),
+        changelog_path: defaults
+            .changelog_path
+            .as_ref()
+            .map(|p| p.display().to_string()),
         changelog_update: defaults.changelog_update,
         features_always_increment_minor: defaults.features_always_increment_minor,
         git_release_enable: defaults.git_release_enable,
         git_release_body: defaults.git_release_body.clone(),
-        git_release_type: defaults.git_release_type.as_ref().map(|t| format!("{:?}", t)),
+        git_release_type: defaults
+            .git_release_type
+            .as_ref()
+            .map(|t| format!("{:?}", t)),
         git_release_draft: defaults.git_release_draft,
         git_release_latest: defaults.git_release_latest,
         git_release_name: defaults.git_release_name.clone(),
@@ -302,10 +309,15 @@ pub(crate) fn extract_workspace_defaults(defaults: &PackageConfig) -> WorkspaceD
     }
 }
 
-pub(crate) fn extract_workspace_overrides(workspace: &crate::config::Workspace) -> WorkspaceOverridesDisplay {
+pub(crate) fn extract_workspace_overrides(
+    workspace: &crate::config::Workspace,
+) -> WorkspaceOverridesDisplay {
     WorkspaceOverridesDisplay {
         allow_dirty: workspace.allow_dirty,
-        changelog_config: workspace.changelog_config.as_ref().map(|p| p.display().to_string()),
+        changelog_config: workspace
+            .changelog_config
+            .as_ref()
+            .map(|p| p.display().to_string()),
         dependencies_update: workspace.dependencies_update,
         pr_name: workspace.pr_name.clone(),
         pr_body: workspace.pr_body.clone(),
@@ -336,7 +348,9 @@ fn build_package_config_display(
 
     Ok(PackageConfigDisplay {
         name: package.name.to_string(),
-        path: package.manifest_path.parent()
+        path: package
+            .manifest_path
+            .parent()
             .map(|p| p.to_string())
             .unwrap_or_else(|| ".".to_string()),
         explicit_overrides,
@@ -353,7 +367,10 @@ pub(crate) fn extract_explicit_overrides(config: &PackageConfig) -> HashMap<Stri
         overrides.insert("changelog_update".to_string(), val.to_string());
     }
     if let Some(val) = config.features_always_increment_minor {
-        overrides.insert("features_always_increment_minor".to_string(), val.to_string());
+        overrides.insert(
+            "features_always_increment_minor".to_string(),
+            val.to_string(),
+        );
     }
     if let Some(val) = config.git_release_enable {
         overrides.insert("git_release_enable".to_string(), val.to_string());

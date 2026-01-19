@@ -59,6 +59,12 @@ git_tag_name = "v{{ version }}"
 
 # Maximum commits to analyze for first release (default: 1000)
 max_analyze_commits = 2000
+
+# Always increment minor version for feat: commits (default: false)
+# By default, feat: commits on 0.x versions only bump the patch version
+# (following semver: 0.x is considered unstable). Set to true to always
+# bump the minor version for feat: commits, even on 0.x versions.
+features_always_increment_minor = true
 ```
 
 ## Git Release Configuration

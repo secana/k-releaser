@@ -577,7 +577,11 @@ impl Updater<'_> {
             }
         }
 
-        debug!("collected {} commits from entire repository since {}", commits.len(), git_tag);
+        debug!(
+            "collected {} commits from entire repository since {}",
+            commits.len(),
+            git_tag
+        );
         Ok(commits)
     }
 }

@@ -30,6 +30,10 @@ inputs:
   output:
     description: 'Output format. When set to "json", prints structured output. Leave empty for normal output.'
     required: false
+  dry-run:
+    description: 'If true, perform a dry run without making any changes'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -99,6 +103,16 @@ runs:
 
         if [ -n "${{ inputs.output }}" ]; then
           ARGS+=("--output=${{ inputs.output }}")
+        fi
+
+        # Add git-token as explicit argument if provided
+        if [ -n "${{ inputs.git-token }}" ]; then
+          ARGS+=("--git-token=${{ inputs.git-token }}")
+        fi
+
+        # Add dry-run flag if enabled
+        if [ "${{ inputs.dry-run }}" = "true" ]; then
+          ARGS+=("--dry-run")
         fi
 
         ARGS+=("--verbose")

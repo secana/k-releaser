@@ -1,10 +1,9 @@
 use anyhow::Context;
 use git_cliff_core::config::{Bump, ChangelogConfig, RemoteConfig};
 use regex::Regex;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ChangelogCfg {
     /// Text at the beginning of the changelog.
@@ -39,7 +38,7 @@ impl ChangelogCfg {
 }
 
 /// Used for modifying commit messages.
-#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone)]
 pub struct TextProcessor {
     /// Regex for matching a text to replace.
     pub pattern: String,
@@ -61,7 +60,7 @@ impl TryFrom<TextProcessor> for git_cliff_core::config::TextProcessor {
     type Error = anyhow::Error;
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy, JsonSchema)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum Sorting {
     Oldest,
@@ -77,7 +76,7 @@ impl std::fmt::Display for Sorting {
     }
 }
 
-#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone)]
 pub struct LinkParser {
     /// Regex for finding links in the commit message.
     pub pattern: String,
@@ -100,7 +99,7 @@ impl TryFrom<LinkParser> for git_cliff_core::config::LinkParser {
 }
 
 /// Parser for grouping commits.
-#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug, Clone)]
 pub struct CommitParser {
     /// Regex for matching the commit message.
     pub message: Option<String>,

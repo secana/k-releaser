@@ -339,7 +339,7 @@ impl GitClient {
                     && status == reqwest::StatusCode::FORBIDDEN
                 {
                     return anyhow::anyhow!(e).context(
-                        "Make sure your token has sufficient permissions. Learn more at https://release-plz.dev/docs/usage/release or https://release-plz.dev/docs/github/token",
+                        "Make sure your token has sufficient permissions. See https://github.com/secana/k-releaser#github-token for details.",
                     );
                 }
                 anyhow::anyhow!(e)
@@ -369,7 +369,7 @@ impl GitClient {
                 if let Some(status) = e.status()
                     && status == reqwest::StatusCode::FORBIDDEN {
                         return anyhow::anyhow!(e).context(
-                            "Make sure your token has sufficient permissions. Learn more at https://release-plz.dev/docs/usage/release#gitlab",
+                            "Make sure your token has sufficient permissions. See https://github.com/secana/k-releaser#gitlab-token for details.",
                         );
                     }
 
@@ -745,7 +745,7 @@ impl GitClient {
                         ))
                     }
                     Some(StatusCode::UNPROCESSABLE_ENTITY) => {
-                        err.context("Please open a GitHub issue: https://github.com/release-plz/release-plz/issues")
+                        err.context("Please open a GitHub issue: https://github.com/secana/k-releaser/issues")
                     }
                     _ => {
                         err.context("HTTP response contained no status code when creating label")
@@ -879,7 +879,7 @@ impl GitClient {
             && let Some(StatusCode::NOT_FOUND | StatusCode::UNPROCESSABLE_ENTITY) = err.status()
         {
             // The user didn't push the commit to the remote repository.
-            // This can happen if people need to do edits before running release-plz (e.g. cargo hakari).
+            // This can happen if people need to do edits before running k-releaser (e.g. cargo hakari).
             // I'm not sure why GitHub returns 422 if the commit doesn't exist.
             return Ok(RemoteCommit { username: None });
         }
@@ -903,7 +903,7 @@ impl GitClient {
             }
             ForgeType::Github => commits_path.to_string(),
             ForgeType::Gitlab => {
-                unimplemented!("Gitlab support for `release-plz release-pr is not implemented yet")
+                unimplemented!("Gitlab support for `k-releaser release-pr` is not implemented yet")
             }
         };
         format!("{}/{commits_api_path}{commit}", self.repo_url())
@@ -943,7 +943,7 @@ impl GitClient {
             anyhow::bail!(
                 "failed to create ref {ref_name} with sha {sha}. \
 The commit {sha} likely hasn't been pushed to the remote repository yet. \
-Please push your local commits and run release-plz again.\nResponse body: {body}"
+Please push your local commits and run k-releaser again.\nResponse body: {body}"
             );
         }
 

@@ -98,8 +98,8 @@ jobs:
             git tag -fa "$MAJOR_TAG" -m "Update $MAJOR_TAG to $TAG_NAME"
             git push origin "$MAJOR_TAG" --force
 
-            echo "✓ Updated $MAJOR_TAG to point to $TAG_NAME"
+            echo "Updated $MAJOR_TAG to point to $TAG_NAME"
           else
-            echo "⚠ Could not extract major version from $TAG_NAME"
+            echo "Error: Could not extract major version from $TAG_NAME"
             exit 1
           fi

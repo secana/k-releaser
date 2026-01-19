@@ -1,6 +1,5 @@
 pub mod config;
 mod config_path;
-mod init;
 pub(crate) mod manifest_command;
 mod publish;
 mod release;
@@ -15,7 +14,6 @@ use clap::{
     ValueEnum,
     builder::{Styles, styling::AnsiColor},
 };
-use init::Init;
 use k_releaser_core::fs_utils::current_directory;
 use tracing::level_filters::LevelFilter;
 
@@ -31,9 +29,9 @@ const HELP_STYLES: Styles = Styles::styled()
     .placeholder(SECONDARY_COLOR.on_default())
     .literal(SECONDARY_COLOR.on_default());
 
-/// Release-plz manages versioning, changelogs, and releases for Rust projects.
+/// k-releaser manages versioning, changelogs, and releases for Rust projects.
 ///
-/// See the Release-plz website for more information <https://release-plz.dev/>.
+/// See the k-releaser repository for more information <https://github.com/secana/k-releaser>.
 #[derive(clap::Parser, Debug)]
 #[command(version, author, styles = HELP_STYLES)]
 pub struct CliArgs {
@@ -77,7 +75,7 @@ pub enum Command {
     ///
     /// The Pull request updates the package version and generates a changelog entry for the new
     /// version based on the commit messages.
-    /// If there is a previously opened Release PR, release-plz will update it
+    /// If there is a previously opened Release PR, k-releaser will update it
     /// instead of opening a new one.
     ReleasePr(ReleasePr),
     /// Publish packages to cargo registry.
@@ -97,11 +95,6 @@ pub enum Command {
     ///
     /// You can run this command in the CI on every commit in the main branch.
     Release(Release),
-    /// Initialize k-releaser for the current GitHub repository.
-    ///
-    /// Stores the necessary tokens in the GitHub repository secrets and generates the
-    /// k-releaser.yml GitHub Actions workflow file.
-    Init(Init),
     /// Show the current configuration.
     Config(Config),
 }
@@ -109,6 +102,17 @@ pub enum Command {
 #[derive(ValueEnum, Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OutputType {
     Json,
+}
+
+/// Kind of git forge where the project is hosted.
+#[derive(ValueEnum, Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GitForgeKind {
+    #[value(name = "github")]
+    Github,
+    #[value(name = "gitea")]
+    Gitea,
+    #[value(name = "gitlab")]
+    Gitlab,
 }
 
 fn local_manifest(manifest_path: Option<&Utf8Path>) -> Utf8PathBuf {

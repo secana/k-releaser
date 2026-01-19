@@ -37,10 +37,7 @@ impl ConfigPath {
                 );
                 Ok(Config::default())
             }
-            Err(err) => Err(err.context(format!(
-                "failed to read config from {}",
-                path.display()
-            ))),
+            Err(err) => Err(err.context(format!("failed to read config from {}", path.display()))),
         }
     }
 
@@ -287,14 +284,27 @@ publish_allow_dirty = true
         let result = config_path.load_from(temp_file.path()).unwrap();
 
         // Should have loaded the workspace config
-        assert_eq!(result.workspace.packages_defaults.changelog_update, Some(true));
-        assert_eq!(result.workspace.packages_defaults.git_release_enable, Some(false));
+        assert_eq!(
+            result.workspace.packages_defaults.changelog_update,
+            Some(true)
+        );
+        assert_eq!(
+            result.workspace.packages_defaults.git_release_enable,
+            Some(false)
+        );
 
         // Should have loaded the package config
         let packages = result.packages();
         assert_eq!(packages.len(), 1);
         assert!(packages.contains_key("test-package"));
-        assert_eq!(packages.get("test-package").unwrap().common().publish_allow_dirty, Some(true));
+        assert_eq!(
+            packages
+                .get("test-package")
+                .unwrap()
+                .common()
+                .publish_allow_dirty,
+            Some(true)
+        );
     }
 
     #[test]

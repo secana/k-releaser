@@ -75,7 +75,7 @@ impl ReleasePrRequest {
     }
 }
 
-/// Release pull request that release-plz opened/updated.
+/// Release pull request that k-releaser opened/updated.
 #[derive(Serialize, Debug)]
 pub struct ReleasePr {
     /// The name of the branch where the changes are implemented.
@@ -114,8 +114,8 @@ pub struct PrPackageRelease {
 
 /// Open a pull request with the next packages versions of a local rust project
 /// Returns:
-/// - [`ReleasePr`] if release-plz opened or updated a PR.
-/// - [`None`] if release-plz didn't open any pr. This happens when all packages
+/// - [`ReleasePr`] if k-releaser opened or updated a PR.
+/// - [`None`] if k-releaser didn't open any pr. This happens when all packages
 ///   are up-to-date.
 #[instrument(skip_all)]
 pub async fn release_pr(input: &ReleasePrRequest) -> anyhow::Result<Option<ReleasePr>> {
@@ -188,25 +188,25 @@ async fn open_or_update_release_pr(
     let mut opened_release_prs = git_client
         .opened_prs(&release_pr_options.pr_branch_prefix)
         .await
-        .context("cannot get opened release-plz prs")?;
+        .context("cannot get opened k-releaser prs")?;
 
-    // Check if there are opened release-plz prs with the old prefix.
-    // This ensures retro-compatibility with the release-plz versions.
-    // TODO: Remove this check on release-plz v0.4.0.
+    // Check if there are opened k-releaser prs with the old prefix.
+    // This ensures retro-compatibility with previous versions.
+    // TODO: Remove this check in a future version.
     if opened_release_prs.is_empty() {
         opened_release_prs = git_client
             .opened_prs(OLD_BRANCH_PREFIX)
             .await
-            .context("cannot get opened release-plz prs")?;
+            .context("cannot get opened k-releaser prs")?;
     }
 
-    // Close all release-plz prs, except one.
+    // Close all k-releaser prs, except one.
     let old_release_prs = opened_release_prs.iter().skip(1);
     for pr in old_release_prs {
         git_client
             .close_pr(pr.number)
             .await
-            .context("cannot close old release-plz prs")?;
+            .context("cannot close old k-releaser prs")?;
     }
 
     let new_pr = {
@@ -260,7 +260,7 @@ async fn handle_opened_pr(
     let pr_commits = git_client
         .pr_commits(opened_pr.number)
         .await
-        .context("cannot get commits of release-plz pr")?;
+        .context("cannot get commits of k-releaser pr")?;
     let pr_contributors = contributors_from_commits(&pr_commits, git_client.forge);
     Ok(if pr_contributors.is_empty() {
         // There are no contributors, so we can force-push
@@ -285,7 +285,7 @@ async fn handle_opened_pr(
                 git_client
                     .close_pr(opened_pr.number)
                     .await
-                    .context("cannot close old release-plz prs")?;
+                    .context("cannot close old k-releaser prs")?;
                 create_pr(git_client, repo, new_pr).await?
             }
         }
@@ -298,7 +298,7 @@ async fn handle_opened_pr(
         git_client
             .close_pr(opened_pr.number)
             .await
-            .context("cannot close old release-plz prs")?;
+            .context("cannot close old k-releaser prs")?;
         create_pr(git_client, repo, new_pr).await?
     })
 }
@@ -358,7 +358,7 @@ async fn update_pr(
 }
 
 /// Update the PR branch with the latest changes from the
-/// original branch where release-plz was run (by default it's the default branch, e.g. `main`).
+/// original branch where k-releaser was run (by default it's the default branch, e.g. `main`).
 fn update_pr_branch(
     commits_number: usize,
     opened_pr: &GitPr,
@@ -384,7 +384,7 @@ fn reset_branch(
     repository: &Repo,
     branch_prefix: &str,
 ) -> anyhow::Result<()> {
-    // sanity check to avoid doing bad things on non-release-plz branches
+    // sanity check to avoid doing bad things on non-k-releaser branches
     anyhow::ensure!(
         pr.branch().starts_with(branch_prefix)
             || pr.branch().starts_with(DEFAULT_BRANCH_PREFIX)
@@ -428,12 +428,12 @@ async fn github_force_push(
 
     // Push the "Verified" commit in the temporary branch using
     // the GitHub API.
-    // We push the release-plz changes to the temporary branch instead of the release PR branch because:
+    // We push the k-releaser changes to the temporary branch instead of the release PR branch because:
     // - You can't force-push with the GitHub API, so we can't commit to the release PR branch
     //   directly if we want a "Verified" commit.
     // - If we revert the last commit of the release PR branch, GitHub will close the release PR
-    //   because the branch is the same as the default branch. So we can't revert the latest release-plz commit and push the new one.
-    // To learn more, see https://github.com/release-plz/release-plz/issues/1487
+    //   because the branch is the same as the default branch. So we can't revert the latest k-releaser commit and push the new one.
+    // To learn more, see https://github.com/secana/k-releaser/issues
     let sha =
         github_create_release_branch(client, repository, &tmp_release_branch, &pr.title).await?;
 
