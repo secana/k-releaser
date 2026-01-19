@@ -23,6 +23,27 @@ pub struct ConfigPath {
 }
 
 impl ConfigPath {
+    /// Load the k-releaser configuration from a specific Cargo.toml file.
+    ///
+    /// This is useful when you want to override the path with a value from another source
+    /// (like --manifest-path) without modifying the ConfigPath struct.
+    pub fn load_from(&self, path: &Path) -> anyhow::Result<Config> {
+        match load_config_from_cargo_toml(path) {
+            Ok(Some(config)) => Ok(config),
+            Ok(None) => {
+                info!(
+                    "No k-releaser configuration found in {}, using default configuration",
+                    path.display()
+                );
+                Ok(Config::default())
+            }
+            Err(err) => Err(err.context(format!(
+                "failed to read config from {}",
+                path.display()
+            ))),
+        }
+    }
+
     /// Load the k-releaser configuration from Cargo.toml [package.metadata.k-releaser] section.
     ///
     /// If a path is specified, it will attempt to load the configuration from that Cargo.toml file.
@@ -218,5 +239,74 @@ version = "0.1.0"
         std::env::set_current_dir(original_dir).unwrap();
 
         assert_eq!(result, Config::default());
+    }
+
+    #[test]
+    fn load_from_loads_from_specified_path() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let default_config = toml::to_string(&Config::default()).unwrap();
+        let cargo_toml = format!(
+            r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[package.metadata.k-releaser]
+{}
+"#,
+            default_config
+        );
+        fs_err::write(&temp_file, cargo_toml).unwrap();
+
+        let config_path = ConfigPath { path: None };
+
+        // load_from should load from the specified path, not from the ConfigPath's path
+        let result = config_path.load_from(temp_file.path()).unwrap();
+
+        assert_eq!(result, Config::default());
+    }
+
+    #[test]
+    fn load_from_with_workspace_metadata() {
+        let temp_file = NamedTempFile::new().unwrap();
+        let cargo_toml = r#"
+[workspace]
+members = ["crates/*"]
+
+[workspace.metadata.k-releaser.workspace]
+changelog_update = true
+git_release_enable = false
+
+[[workspace.metadata.k-releaser.package]]
+name = "test-package"
+publish_allow_dirty = true
+"#;
+        fs_err::write(&temp_file, cargo_toml).unwrap();
+
+        let config_path = ConfigPath { path: None };
+        let result = config_path.load_from(temp_file.path()).unwrap();
+
+        // Should have loaded the workspace config
+        assert_eq!(result.workspace.packages_defaults.changelog_update, Some(true));
+        assert_eq!(result.workspace.packages_defaults.git_release_enable, Some(false));
+
+        // Should have loaded the package config
+        let packages = result.packages();
+        assert_eq!(packages.len(), 1);
+        assert!(packages.contains_key("test-package"));
+        assert_eq!(packages.get("test-package").unwrap().common().publish_allow_dirty, Some(true));
+    }
+
+    #[test]
+    fn load_from_with_nonexistent_file_returns_error() {
+        let temp_dir = tempdir().unwrap();
+        let non_existent_path = temp_dir.path().join("nonexistent.toml");
+
+        let config_path = ConfigPath { path: None };
+        let result = config_path.load_from(&non_existent_path);
+
+        // Should return default config (no error for load_from)
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), Config::default());
     }
 }

@@ -4,6 +4,34 @@ k-releaser is configured in your root `Cargo.toml` file under `[workspace.metada
 
 > **Note**: k-releaser is **command-driven, not config-driven**. Configuration controls *how* commands work (templates, labels, etc.), not *whether* they run. To create a release, run the `release` command. To skip a release, don't run it. Simple!
 
+## Viewing Configuration
+
+Use the `config show` command to inspect your current k-releaser configuration:
+
+```bash
+# Show configuration for current workspace
+k-releaser config show
+
+# Show configuration for a specific workspace
+k-releaser config show --manifest-path path/to/Cargo.toml
+
+# Filter to specific package
+k-releaser config show --package my-package
+
+# Output as JSON for scripting
+k-releaser config show --output json
+```
+
+The output shows:
+- **Workspace Defaults**: Settings that apply to all packages unless overridden
+- **Workspace-Specific Settings**: Settings that don't apply to individual packages (PR config, repo URL, etc.)
+- **Package Configurations**: Per-package overrides (only packages with explicit overrides are shown)
+
+This is useful for:
+- Understanding which values are explicitly set vs using defaults
+- Debugging configuration issues in large workspaces
+- Verifying per-package overrides are correctly applied
+
 ## Basic Configuration
 
 ```toml
@@ -137,16 +165,47 @@ dependencies_update = false
 
 ## Per-Package Overrides
 
-Override settings for specific packages (rarely needed with unified versioning):
+Override settings for specific packages. Each package override is defined with `[[workspace.metadata.k-releaser.package]]` (note the double brackets - this creates an array of package configurations):
 
 ```toml
+# Package-specific override for special cases
 [[workspace.metadata.k-releaser.package]]
 name = "my-package"
 # Custom changelog path for this package
 changelog_path = "packages/my-package/CHANGELOG.md"
+# Allow publishing even if git working directory is dirty
+publish_allow_dirty = true
+
+# Another package override
+[[workspace.metadata.k-releaser.package]]
+name = "my-codegen-package"
+# Disable semver checking for codegen packages
+semver_check = false
 ```
 
+**Note**: With unified versioning (where all packages share the same version), per-package overrides are rarely needed. Most configuration should be done at the workspace level.
+
+**Available per-package settings:**
+- `changelog_path` - Custom path for package changelog
+- `changelog_update` - Enable/disable changelog updates
+- `publish_allow_dirty` - Allow publishing with dirty git state
+- `publish_no_verify` - Skip build verification before publish
+- `publish_features` - Features to enable during publish
+- `publish_all_features` - Publish with all features enabled
+- `semver_check` - Enable/disable semver compatibility checking
+- `git_tag_name` - Custom tag name template
+- `git_tag_enable` - Enable/disable git tag creation
+- `git_release_enable` - Enable/disable git release creation
+- `git_release_name` - Custom release name template
+- `git_release_body` - Custom release body template
+- `git_release_type` - Release type (prod/pre/auto)
+- `git_release_draft` - Create as draft release
+- `git_release_latest` - Mark as latest release
+- `features_always_increment_minor` - Treat feature additions as minor bumps
+
 ## Complete Example
+
+Here's a complete example showing workspace-level settings and per-package overrides:
 
 ```toml
 [workspace.metadata.k-releaser]
@@ -167,4 +226,16 @@ pr_branch_prefix = "release-"
 # Repository
 repo_url = "https://github.com/your-org/your-repo"
 dependencies_update = false
+
+# Per-package override for embedded resources
+[[workspace.metadata.k-releaser.package]]
+name = "my-embedded-resources"
+publish_allow_dirty = true
+
+# Per-package override for CLI binary
+[[workspace.metadata.k-releaser.package]]
+name = "my-cli"
+publish_all_features = true
 ```
+
+Use `k-releaser config show` to verify your configuration is loaded correctly.

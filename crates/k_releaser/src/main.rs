@@ -1,6 +1,7 @@
 mod args;
 mod changelog_config;
 mod config;
+mod config_show;
 pub mod init;
 mod log;
 
@@ -89,6 +90,11 @@ async fn run(args: CliArgs) -> anyhow::Result<()> {
             }
         }
         Command::Init(cmd_args) => init::init(&cmd_args.manifest_path(), !cmd_args.no_toml_check)?,
+        Command::Config(cmd) => match cmd.subcommand {
+            crate::args::config::ConfigSubcommand::Show(show_args) => {
+                config_show::show_config(show_args)?;
+            }
+        },
     }
     Ok(())
 }

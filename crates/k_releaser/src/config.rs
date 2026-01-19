@@ -35,7 +35,7 @@ pub struct Config {
 impl Config {
     /// Package-specific configurations.
     /// Returns `<package name, package config>`.
-    fn packages(&self) -> HashMap<&str, &PackageSpecificConfig> {
+    pub fn packages(&self) -> HashMap<&str, &PackageSpecificConfig> {
         self.package
             .iter()
             .map(|p| (p.name.as_str(), &p.config))
@@ -291,6 +291,11 @@ impl PackageSpecificConfig {
             changelog_include: self.changelog_include,
             version_group: self.version_group,
         }
+    }
+
+    /// Get the common package configuration.
+    pub fn common(&self) -> &PackageConfig {
+        &self.common
     }
 }
 
@@ -705,6 +710,123 @@ allow_dirty = true";
             unknown field `unknown`
         "]]
         .assert_eq(&error);
+    }
+
+    #[test]
+    fn documentation_examples_are_valid() {
+        // Test example from CONFIGURATION.md - Basic Configuration
+        let config = r#"
+[workspace]
+release_commits = "^(feat|fix):"
+changelog_update = true
+changelog_config = ".github/cliff.toml"
+"#;
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        // Test example from CONFIGURATION.md - Version Control
+        let config = r#"
+[workspace]
+git_tag_name = "v{{ version }}"
+max_analyze_commits = 2000
+"#;
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        // Test example from CONFIGURATION.md - Git Release Configuration
+        let config = r#"
+[workspace]
+git_release_enable = true
+git_release_name = "Release {{ version }}"
+git_release_body = "{{ changelog }}"
+git_release_type = "auto"
+git_release_draft = false
+git_release_latest = true
+"#;
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        // Test example from CONFIGURATION.md - PR Configuration
+        let config = r#"
+[workspace]
+pr_name = "chore: release {{ version }}"
+pr_body = """
+## Release {{ version }}
+
+{{ changelog }}
+"""
+pr_draft = false
+pr_labels = ["release", "automated"]
+pr_branch_prefix = "release-"
+"#;
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        // Test example from CONFIGURATION.md - Repository Settings
+        let config = r#"
+[workspace]
+repo_url = "https://github.com/your-org/your-repo"
+allow_dirty = false
+dependencies_update = false
+"#;
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        // Test example from CONFIGURATION.md - Per-Package Overrides
+        let config = r#"
+[[package]]
+name = "my-package"
+changelog_path = "packages/my-package/CHANGELOG.md"
+publish_allow_dirty = true
+
+[[package]]
+name = "my-codegen-package"
+semver_check = false
+"#;
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        // Test example from CONFIGURATION.md - Complete Example
+        let config = r#"
+[workspace]
+changelog_update = true
+release_commits = "^(feat|fix|perf):"
+git_tag_name = "v{{ version }}"
+git_release_name = "{{ version }}"
+git_release_type = "auto"
+pr_draft = false
+pr_labels = ["release"]
+pr_branch_prefix = "release-"
+repo_url = "https://github.com/your-org/your-repo"
+dependencies_update = false
+
+[[package]]
+name = "my-embedded-resources"
+publish_allow_dirty = true
+
+[[package]]
+name = "my-cli"
+publish_all_features = true
+"#;
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        // Test Changelog example from CONFIGURATION.md
+        let config = r#"
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+"""
+body = """
+## [{{ version }}]({{ release_link }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+  - {{ commit.message }}{% if commit.breaking %} **BREAKING**{% endif %}
+{% endfor %}
+{% endfor %}
+"""
+trim = true
+sort_commits = "newest"
+protect_breaking_commits = true
+"#;
+        assert!(toml::from_str::<Config>(config).is_ok());
     }
 
     #[test]

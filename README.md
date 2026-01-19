@@ -129,6 +129,7 @@ k-releaser provides several commands, each with a specific purpose:
 - **`k-releaser release`** - Create git tags and GitHub/Gitea/GitLab releases (run after merging release PR)
 - **`k-releaser publish`** - Publish packages to a cargo registry (if needed)
 - **`k-releaser update`** - Update versions and changelogs locally without creating a PR
+- **`k-releaser config show`** - Display current configuration with workspace defaults and package overrides
 
 ### Usage
 
@@ -204,6 +205,22 @@ jobs:
 ```
 
 The `K_RELEASER_TOKEN` must be a `GITHUB_TOKEN` with the rights to edit `content` and `pull-requests`. The default token from Github usually lacks this permission.
+
+## Configuration
+
+k-releaser is configured in your `Cargo.toml` file under `[workspace.metadata.k-releaser]`. You can customize:
+
+- Changelog generation and templates
+- Git tag and release naming
+- PR behavior and labels
+- Per-package overrides for special cases
+
+**View your current configuration:**
+```bash
+k-releaser config show
+```
+
+For detailed configuration options and examples, see [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Related projects
 

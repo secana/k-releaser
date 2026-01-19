@@ -1,3 +1,4 @@
+pub mod config;
 mod config_path;
 mod init;
 pub(crate) mod manifest_command;
@@ -19,7 +20,7 @@ use k_releaser_core::fs_utils::current_directory;
 use tracing::level_filters::LevelFilter;
 
 use self::{
-    publish::Publish, release::Release, release_pr::ReleasePr, update::Update,
+    config::Config, publish::Publish, release::Release, release_pr::ReleasePr, update::Update,
 };
 
 const MAIN_COLOR: AnsiColor = AnsiColor::Red;
@@ -101,6 +102,8 @@ pub enum Command {
     /// Stores the necessary tokens in the GitHub repository secrets and generates the
     /// k-releaser.yml GitHub Actions workflow file.
     Init(Init),
+    /// Show the current configuration.
+    Config(Config),
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, Eq, PartialEq)]
