@@ -59,6 +59,19 @@ pub struct Publish {
 }
 
 impl Publish {
+    /// Load the k-releaser configuration.
+    ///
+    /// If `--manifest-path` is specified but `--config` is not, load config from the manifest path.
+    pub fn load_config(&self) -> anyhow::Result<Config> {
+        if self.config.has_explicit_path() {
+            return self.config.load();
+        }
+        if let Some(manifest_path) = &self.manifest_path {
+            return self.config.load_from(manifest_path);
+        }
+        self.config.load()
+    }
+
     pub fn publish_request(
         self,
         config: &Config,

@@ -23,6 +23,11 @@ pub struct ConfigPath {
 }
 
 impl ConfigPath {
+    /// Returns true if an explicit config path was specified via --config.
+    pub fn has_explicit_path(&self) -> bool {
+        self.path.is_some()
+    }
+
     /// Load the k-releaser configuration from a specific Cargo.toml file.
     ///
     /// This is useful when you want to override the path with a value from another source

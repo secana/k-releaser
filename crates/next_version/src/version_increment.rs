@@ -203,4 +203,36 @@ mod tests {
 
         assert!(!is_there_a_custom_match(Some(&regex), &commits));
     }
+
+    /// Test that commit messages with a body (subject + blank line + body) parse correctly.
+    /// This is important because git's %B format preserves the blank line which is required
+    /// by the conventional commit spec for messages with a body.
+    #[test]
+    fn feat_with_body_parses_correctly() {
+        // Message with proper blank line between subject and body (as git %B format provides)
+        let msg = "feat: improved UI (#966)\n\nMore modern and consistent UI";
+        let result = Commit::parse(msg);
+        assert!(
+            result.is_ok(),
+            "Should parse feat commit with body: {:?}",
+            result.err()
+        );
+        let commit = result.unwrap();
+        assert_eq!(commit.type_(), git_conventional::Type::FEAT);
+        assert_eq!(commit.description(), "improved UI (#966)");
+    }
+
+    /// Test that commit messages without a blank line before body fail to parse.
+    /// This documents the behavior that caused the kellnr bug - using %s%n%b format
+    /// instead of %B format produced invalid messages.
+    #[test]
+    fn feat_without_blank_line_fails_to_parse() {
+        // Message WITHOUT blank line - this is what %s%n%b format produces
+        let msg = "feat: improved UI (#966)\nMore modern and consistent UI";
+        let result = Commit::parse(msg);
+        assert!(
+            result.is_err(),
+            "Should fail to parse without blank line before body"
+        );
+    }
 }

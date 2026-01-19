@@ -128,6 +128,27 @@ impl ManifestCommand for Update {
 }
 
 impl Update {
+    /// Load the k-releaser configuration.
+    ///
+    /// This method handles config loading correctly when `--manifest-path` is specified:
+    /// 1. If `--config` is explicitly specified, load from that path
+    /// 2. Otherwise, if `--manifest-path` is specified, load config from that Cargo.toml
+    /// 3. Otherwise, use the default behavior (load from `./Cargo.toml`)
+    pub fn load_config(&self) -> anyhow::Result<Config> {
+        // If explicit config path is specified, use ConfigPath::load()
+        if self.config.has_explicit_path() {
+            return self.config.load();
+        }
+
+        // If manifest_path is specified, load config from that Cargo.toml
+        if let Some(manifest_path) = &self.manifest_path {
+            return self.config.load_from(manifest_path);
+        }
+
+        // Default: load from ./Cargo.toml
+        self.config.load()
+    }
+
     pub fn git_forge(&self, repo: RepoUrl) -> anyhow::Result<Option<GitForge>> {
         let Some(token) = self.git_token.clone() else {
             return Ok(None);

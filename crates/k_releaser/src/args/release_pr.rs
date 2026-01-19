@@ -12,6 +12,10 @@ pub struct ReleasePr {
     /// the release PR, if any.
     #[arg(short, long, value_enum)]
     pub output: Option<OutputType>,
+    /// Dry run mode. Calculate what the PR would contain but don't create it.
+    /// Prints the PR title and body to stdout for debugging.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 impl ReleasePr {

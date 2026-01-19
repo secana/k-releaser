@@ -28,34 +28,52 @@ async fn run(args: CliArgs) -> anyhow::Result<()> {
     match args.command {
         Command::Update(cmd_args) => {
             let cargo_metadata = cmd_args.cargo_metadata()?;
-            let config = cmd_args.config.load()?;
+            let config = cmd_args.load_config()?;
             let update_request = cmd_args.update_request(&config, cargo_metadata)?;
             let (packages_update, _temp_repo) = k_releaser_core::update(&update_request).await?;
             println!("{}", packages_update.summary());
         }
         Command::ReleasePr(cmd_args) => {
-            anyhow::ensure!(
-                cmd_args.update.git_token.is_some(),
-                "please provide the git token with the --git-token cli argument."
-            );
             let cargo_metadata = cmd_args.update.cargo_metadata()?;
-            let config = cmd_args.update.config.load()?;
+            let config = cmd_args.update.load_config()?;
             let request = cmd_args.release_pr_req(&config, cargo_metadata)?;
-            let release_pr = k_releaser_core::release_pr(&request).await?;
-            if let Some(output_type) = cmd_args.output {
-                let prs = match release_pr {
-                    Some(pr) => vec![pr],
-                    None => vec![],
-                };
-                let prs_json = serde_json::json!({
-                    "prs": prs
-                });
-                print_output(output_type, prs_json);
+
+            if cmd_args.dry_run {
+                // Dry-run mode: calculate what the PR would contain but don't create it
+                let dry_run_result = k_releaser_core::release_pr_dry_run(&request).await?;
+                println!("=== Dry Run Results ===\n");
+                println!("Title: {}\n", dry_run_result.title);
+                if let Some(version) = &dry_run_result.version {
+                    println!("Version: {}\n", version);
+                }
+                println!("Body:\n{}\n", dry_run_result.body);
+                if !dry_run_result.commits.is_empty() {
+                    println!("Commits detected:");
+                    for commit in &dry_run_result.commits {
+                        println!("  {}", commit);
+                    }
+                }
+            } else {
+                anyhow::ensure!(
+                    cmd_args.update.git_token.is_some(),
+                    "please provide the git token with the --git-token cli argument."
+                );
+                let release_pr = k_releaser_core::release_pr(&request).await?;
+                if let Some(output_type) = cmd_args.output {
+                    let prs = match release_pr {
+                        Some(pr) => vec![pr],
+                        None => vec![],
+                    };
+                    let prs_json = serde_json::json!({
+                        "prs": prs
+                    });
+                    print_output(output_type, prs_json);
+                }
             }
         }
         Command::Publish(cmd_args) => {
             let cargo_metadata = cmd_args.cargo_metadata()?;
-            let config = cmd_args.config.load()?;
+            let config = cmd_args.load_config()?;
             let print_order = cmd_args.print_order;
             let cmd_args_output = cmd_args.output;
             let request = cmd_args.publish_request(&config, cargo_metadata)?;
@@ -78,7 +96,7 @@ async fn run(args: CliArgs) -> anyhow::Result<()> {
         }
         Command::Release(cmd_args) => {
             let cargo_metadata = cmd_args.cargo_metadata()?;
-            let config = cmd_args.config.load()?;
+            let config = cmd_args.load_config()?;
             let cmd_args_output = cmd_args.output;
             let request: ReleaseRequest = cmd_args.release_request(&config, cargo_metadata)?;
             let output = k_releaser_core::release(&request)

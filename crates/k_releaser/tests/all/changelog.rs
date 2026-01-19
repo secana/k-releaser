@@ -387,6 +387,10 @@ async fn raw_message_contains_entire_commit_message() {
 
     let changelog = fs_err::read_to_string(context.repo.directory().join("CHANGELOG.md")).unwrap();
 
+    // Note: The raw_message now includes the blank line between subject and body
+    // because we use git %B format to preserve proper conventional commit structure.
+    // The `message` field in git-cliff is the parsed description (without type prefix),
+    // while `raw_message` is the full commit message.
     expect_test::expect![[r"
         # Changelog
 
@@ -398,9 +402,9 @@ async fn raw_message_contains_entire_commit_message() {
         ## [Unreleased]
 
         raw_message: feat: new file
+
         commit body
-        message: feat: new file
-        commit body
+        message: new file
 
         raw_message: fix: add config file
         message: add config file

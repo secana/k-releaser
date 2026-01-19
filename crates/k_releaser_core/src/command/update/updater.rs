@@ -179,7 +179,7 @@ impl Updater<'_> {
         // Calculate next version based on ALL commits
         let next_version = if all_commits.is_empty() {
             // No commits, keep current version
-            current_workspace_version
+            current_workspace_version.clone()
         } else {
             // Analyze commits to determine version bump
             version_updater.increment(
@@ -552,10 +552,12 @@ impl Updater<'_> {
 
         // Use git log to get all commits (without --first-parent to include commits
         // from all branches that were merged, e.g., via `git pull` merge commits)
+        // Use %B to get the full commit message (subject + body) which preserves
+        // the blank line between subject and body that conventional commit parsers require.
         let output = repository.git(&[
             "log",
             &commit_range,
-            "--format=%H%n%s%n%b%n--END-COMMIT--",
+            "--format=%H%n%B%n--END-COMMIT--",
         ])?;
 
         let mut commits = Vec::new();
@@ -575,7 +577,7 @@ impl Updater<'_> {
                     continue;
                 }
 
-                // Collect subject and body
+                // Collect the full commit message (already includes blank line between subject and body)
                 let message: String = lines.collect::<Vec<_>>().join("\n");
 
                 // Skip release PR commits (version bumps created by k-releaser or similar tools)

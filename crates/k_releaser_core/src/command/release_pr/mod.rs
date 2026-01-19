@@ -112,6 +112,94 @@ pub struct PrPackageRelease {
     version: Version,
 }
 
+/// Result of a dry-run release PR calculation.
+/// Contains the PR title and body that would be created, without actually creating the PR.
+#[derive(Debug)]
+pub struct ReleasePrDryRun {
+    /// The title that would be used for the PR.
+    pub title: String,
+    /// The body that would be used for the PR.
+    pub body: String,
+    /// The version that would be set.
+    pub version: Option<Version>,
+    /// Commits that were found since the last tag.
+    pub commits: Vec<String>,
+}
+
+/// Perform a dry-run of the release PR process.
+/// Calculates what the PR would contain but doesn't create it.
+/// Returns information about what the PR would look like.
+#[instrument(skip_all)]
+pub async fn release_pr_dry_run(input: &ReleasePrRequest) -> anyhow::Result<ReleasePrDryRun> {
+    let manifest_dir = input.update_request.local_manifest_dir()?;
+    let original_project_root = root_repo_path_from_manifest_dir(manifest_dir)?;
+    let tmp_project_root_parent = copy_to_temp_dir(&original_project_root)?;
+    let tmp_project_manifest_dir = new_manifest_dir_path(
+        &original_project_root,
+        manifest_dir,
+        tmp_project_root_parent.path(),
+    )?;
+
+    validate_labels(&input.labels)?;
+    let tmp_project_root =
+        new_project_root(&original_project_root, tmp_project_root_parent.path())?;
+
+    let local_manifest = tmp_project_manifest_dir.join(CARGO_TOML);
+    let new_update_request = input
+        .update_request
+        .clone()
+        .set_local_manifest(&local_manifest)
+        .context("can't find temporary project")?;
+    let (packages_to_update, _temp_repository) = update(&new_update_request)
+        .await
+        .context("failed to update packages")?;
+
+    if packages_to_update.updates().is_empty() {
+        return Ok(ReleasePrDryRun {
+            title: "No updates needed".to_string(),
+            body: "All packages are up-to-date. No PR would be created.".to_string(),
+            version: None,
+            commits: vec![],
+        });
+    }
+
+    let repo = Repo::new(tmp_project_root)?;
+    let project_contains_multiple_pub_packages =
+        publishable_packages_from_manifest(&local_manifest)?.len() > 1;
+
+    let pr = Pr::new(
+        repo.original_branch(),
+        &packages_to_update,
+        project_contains_multiple_pub_packages,
+        &input.branch_prefix,
+        input.pr_name_template.clone(),
+        input.pr_body_template.as_deref(),
+    )?;
+
+    // Collect commit messages from the updates
+    let commits: Vec<String> = packages_to_update
+        .updates()
+        .iter()
+        .flat_map(|(_, update)| {
+            update
+                .new_changelog_entry
+                .as_deref()
+                .unwrap_or_default()
+                .lines()
+                .filter(|line| line.starts_with("- "))
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
+        })
+        .collect();
+
+    Ok(ReleasePrDryRun {
+        title: pr.title.clone(),
+        body: pr.body.clone(),
+        version: packages_to_update.workspace_version().cloned(),
+        commits,
+    })
+}
+
 /// Open a pull request with the next packages versions of a local rust project
 /// Returns:
 /// - [`ReleasePr`] if k-releaser opened or updated a PR.
