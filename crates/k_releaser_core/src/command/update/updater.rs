@@ -551,9 +551,12 @@ impl Updater<'_> {
         };
 
         // Use git log to get all commits
+        // Use --first-parent to only follow the main branch history and avoid
+        // including commits from merged release PR branches
         let output = repository.git(&[
             "log",
             &commit_range,
+            "--first-parent",
             "--format=%H%n%s%n%b%n--END-COMMIT--",
         ])?;
 
