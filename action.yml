@@ -93,25 +93,28 @@ runs:
           ARGS+=("--config=${{ inputs.config-path }}")
         fi
 
-        if [ -n "${{ inputs.registry }}" ]; then
+        # Only add --registry for publish command
+        if [ -n "${{ inputs.registry }}" ] && [[ "${{ inputs.command }}" == "publish" ]]; then
           ARGS+=("--registry=${{ inputs.registry }}")
         fi
 
-        if [ -n "${{ inputs.backend }}" ]; then
+        # Only add --forge for commands that support it (release-pr, release)
+        if [ -n "${{ inputs.backend }}" ] && [[ "${{ inputs.command }}" == "release-pr" || "${{ inputs.command }}" == "release" ]]; then
           ARGS+=("--forge=${{ inputs.backend }}")
         fi
 
-        if [ -n "${{ inputs.output }}" ]; then
+        # Only add --output for commands that support it (release-pr, release, publish)
+        if [ -n "${{ inputs.output }}" ] && [[ "${{ inputs.command }}" != "update" ]]; then
           ARGS+=("--output=${{ inputs.output }}")
         fi
 
-        # Add git-token as explicit argument if provided
-        if [ -n "${{ inputs.git-token }}" ]; then
+        # Add git-token as explicit argument for commands that support it
+        if [ -n "${{ inputs.git-token }}" ] && [[ "${{ inputs.command }}" == "release-pr" || "${{ inputs.command }}" == "release" ]]; then
           ARGS+=("--git-token=${{ inputs.git-token }}")
         fi
 
-        # Add dry-run flag if enabled
-        if [ "${{ inputs.dry-run }}" = "true" ]; then
+        # Add dry-run flag for commands that support it (release-pr, release, publish)
+        if [ "${{ inputs.dry-run }}" = "true" ] && [[ "${{ inputs.command }}" != "update" ]]; then
           ARGS+=("--dry-run")
         fi
 
