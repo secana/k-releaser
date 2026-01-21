@@ -27,7 +27,7 @@ k-releaser was created to address specific needs of **large mixed language monor
 | **Version detection** | Checks crates.io for latest versions | Uses only git tags (no registry dependency) |
 | **Workspace handling** | Per-package versioning and changelogs | Unified versioning across all workspace packages |
 | **Changelog** | Separate changelog per package | Single workspace-level changelog |
-| **Publishing** | Publishes to crates.io | No crates.io publishing (git releases only) |
+| **Publishing** | Publishes to crates.io | crates.io publishing as sparate command |
 | **PR format** | Lists each package separately | Treats entire workspace as single unit |
 | **Use case** | Standard Rust projects | Large mixed language monorepos |
 
