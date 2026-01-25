@@ -61,8 +61,8 @@ impl Updater<'_> {
             anyhow::bail!("Could not find version in Cargo.toml");
         };
 
+        let mut all_commits = self.get_all_commits_since_latest_tag(repository)?;
         let git_tag = self.project.git_tag(&current_version.to_string())?;
-        let mut all_commits = self.get_all_commits_since_tag(repository, &git_tag)?;
         let tag_exists = repository.get_tag_commit(&git_tag).is_some();
 
         // Get package diffs for semver checking purposes only
@@ -528,26 +528,29 @@ fn get_package_files(
 }
 
 impl Updater<'_> {
-    /// Get ALL commits from the entire repository since the given tag.
+    /// Get ALL commits from the entire repository since the latest tag.
     /// This is used for unified workspace versioning where we don't filter by package paths.
-    fn get_all_commits_since_tag(
+    /// Uses `git describe --tags --abbrev=0` to find the most recent tag.
+    fn get_all_commits_since_latest_tag(
         &self,
         repository: &Repo,
-        git_tag: &str,
     ) -> anyhow::Result<Vec<Commit>> {
-        let tag_commit = repository.get_tag_commit(git_tag);
-
-        // Determine the range to query
-        let commit_range = if let Some(tag_commit) = &tag_commit {
-            // Get commits since the tag
-            format!("{}..HEAD", tag_commit)
-        } else {
-            // No tag exists (first release), use max_analyze_commits limit
-            let max_commits = match self.req.max_analyze_commits() {
-                0 => 1000, // Default reasonable limit
-                n => n,
-            };
-            format!("-{}", max_commits)
+        // Use git describe to find the most recent tag reachable from HEAD
+        let commit_range = match repository.git(&["describe", "--tags", "--abbrev=0"]) {
+            Ok(tag) => {
+                let tag = tag.trim();
+                debug!("found most recent tag: {}", tag);
+                format!("{}..HEAD", tag)
+            }
+            Err(e) => {
+                // No tags exist (first release), use max_analyze_commits limit
+                debug!("git describe failed (no tags exist?): {}", e);
+                let max_commits = match self.req.max_analyze_commits() {
+                    0 => 1000, // Default reasonable limit
+                    n => n,
+                };
+                format!("-{}", max_commits)
+            }
         };
 
         // Use git log to get all commits (without --first-parent to include commits
@@ -592,9 +595,8 @@ impl Updater<'_> {
         }
 
         debug!(
-            "collected {} commits from entire repository since {}",
-            commits.len(),
-            git_tag
+            "collected {} commits from entire repository since latest tag",
+            commits.len()
         );
         Ok(commits)
     }
