@@ -493,7 +493,8 @@ async fn publish_package_to_registry(
     }
 
     // Run `cargo publish`. Note that `--dry-run` is added if `input.dry_run` is true.
-    let output = run_cargo_publish(package, input, workspace_root, &publish_token)
+    let output = run_cargo_publish_with_retry(package, input, workspace_root, &publish_token)
+        .await
         .context("failed to run cargo publish")?;
 
     if !output.status.success()
@@ -526,6 +527,46 @@ async fn publish_package_to_registry(
         info!("published {} {}", package.name, package.version);
         Ok(true)
     }
+}
+
+/// Time between two `cargo publish` attempts when the registry index is stale.
+const STALE_INDEX_RETRY_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Run `cargo publish` and retry while cargo can't find a just published
+/// dependency.
+///
+/// After a dependency is published, the registry index (e.g. the crates.io
+/// CDN) can still serve an old version of its entry for a short time, even
+/// though [`wait_until_published`] already saw the new version. `cargo
+/// publish` then fails to resolve the dependency. Retrying until the index
+/// is up to date fixes this.
+async fn run_cargo_publish_with_retry(
+    package: &Package,
+    input: &PublishRequest,
+    workspace_root: &Utf8Path,
+    token: &Option<SecretString>,
+) -> anyhow::Result<CmdOutput> {
+    let start = std::time::Instant::now();
+    loop {
+        let output = run_cargo_publish(package, input, workspace_root, token)?;
+        if output.status.success()
+            || !is_stale_index_error(&output.stderr)
+            || start.elapsed() + STALE_INDEX_RETRY_INTERVAL > input.publish_timeout
+        {
+            return Ok(output);
+        }
+        warn!(
+            "{} {}: a dependency is not in the registry index yet, retrying in {:?}",
+            package.name, package.version, STALE_INDEX_RETRY_INTERVAL
+        );
+        tokio::time::sleep(STALE_INDEX_RETRY_INTERVAL).await;
+    }
+}
+
+/// Whether `cargo publish` failed because a dependency version is missing in
+/// the registry index.
+fn is_stale_index_error(stderr: &str) -> bool {
+    stderr.contains("failed to select a version for the requirement")
 }
 
 /// Get the indexes where the package should be published.
@@ -672,5 +713,36 @@ fn run_cargo_publish(
 impl PackagesConfig {
     pub fn overridden_packages(&self) -> std::collections::HashSet<&str> {
         self.overrides.keys().map(|s| s.as_str()).collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stale_index_error_is_detected() {
+        let stderr = r#"    Updating crates.io index
+   Packaging kellnr-web-ui v6.11.0 (/home/runner/work/kellnr/kellnr/crates/web-ui)
+    Updating crates.io index
+error: failed to prepare local package for uploading
+
+Caused by:
+  failed to select a version for the requirement `kellnr-docs = "^6.11.0"`
+  candidate versions found which didn't match: 6.6.0, 6.5.3, 6.5.2, ...
+  location searched: crates.io index
+  required by package `kellnr-web-ui v6.11.0 (/home/runner/work/kellnr/kellnr/crates/web-ui)`
+"#;
+        assert!(is_stale_index_error(stderr));
+    }
+
+    #[test]
+    fn other_publish_errors_are_not_retried() {
+        assert!(!is_stale_index_error(
+            "error: crate version `1.0.0` is already uploaded"
+        ));
+        assert!(!is_stale_index_error(
+            "error: failed to verify package tarball"
+        ));
     }
 }
