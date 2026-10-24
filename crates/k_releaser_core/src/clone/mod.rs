@@ -99,7 +99,7 @@ impl Cloner {
                     format!(
                         "Cannot clone {} from git repo because \
                         repository is not specified in package's manifest.",
-                        &name
+                        name
                     )
                 })?;
 
@@ -129,7 +129,7 @@ impl Cloner {
             let pkg = self
                 .clone_in(crate_, &dest_path, &mut src)
                 .with_context(|| {
-                    format!("failed to clone package {} in {dest_path}", &crate_.name)
+                    format!("failed to clone package {} in {dest_path}", crate_.name)
                 })?;
 
             if let Some(pkg) = pkg {

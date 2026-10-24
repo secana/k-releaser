@@ -8,26 +8,6 @@ pub fn add_feature(project: &Utf8Path, message: &str) {
     git_in_dir(project, &["commit", "-m", &commit_message]).unwrap();
 }
 
-pub fn add_chore(project: &Utf8Path, message: &str) {
-    // Create a small change to allow commit
-    let lib_path = project.join("src").join("lib.rs");
-    let content = fs_err::read_to_string(&lib_path).unwrap_or_default();
-    fs_err::write(&lib_path, format!("{content}\n// {message}")).unwrap();
-    git_in_dir(project, &["add", "."]).unwrap();
-    let commit_message = format!("chore: {message}");
-    git_in_dir(project, &["commit", "-m", &commit_message]).unwrap();
-}
-
-pub fn add_ci(project: &Utf8Path, message: &str) {
-    // Create a small change to allow commit
-    let lib_path = project.join("src").join("lib.rs");
-    let content = fs_err::read_to_string(&lib_path).unwrap_or_default();
-    fs_err::write(&lib_path, format!("{content}\n// ci: {message}")).unwrap();
-    git_in_dir(project, &["add", "."]).unwrap();
-    let commit_message = format!("ci: {message}");
-    git_in_dir(project, &["commit", "-m", &commit_message]).unwrap();
-}
-
 pub fn create_tag(project: &Utf8Path, tag: &str) {
     git_in_dir(project, &["tag", "-m", tag, tag]).unwrap();
 }
@@ -74,17 +54,30 @@ pub fn create_merge_with_feature_on_second_parent(project: &Utf8Path) {
     // Use a separate file to avoid conflicts
     fs_err::write(project.join("version.txt"), "version update").unwrap();
     git_in_dir(project, &["add", "."]).unwrap();
-    git_in_dir(project, &["commit", "-m", "chore: update version in Cargo.toml"]).unwrap();
+    git_in_dir(
+        project,
+        &["commit", "-m", "chore: update version in Cargo.toml"],
+    )
+    .unwrap();
 
     // Merge the feature branch (creates a merge commit like `git pull` would)
     git_in_dir(
         project,
-        &["merge", "feature-branch", "-m", "Merge branch 'feature-branch'"],
+        &[
+            "merge",
+            "feature-branch",
+            "-m",
+            "Merge branch 'feature-branch'",
+        ],
     )
     .unwrap();
 
     // Add another chore commit after the merge (simulating workspace version update)
     fs_err::write(project.join("workspace.txt"), "workspace versions").unwrap();
     git_in_dir(project, &["add", "."]).unwrap();
-    git_in_dir(project, &["commit", "-m", "chore: update workspace versions"]).unwrap();
+    git_in_dir(
+        project,
+        &["commit", "-m", "chore: update workspace versions"],
+    )
+    .unwrap();
 }

@@ -246,7 +246,7 @@ async fn can_generate_single_changelog_for_multiple_packages_in_pr() {
     let context = TestContext::new_workspace_with_packages(&[
         TestPackage::new("one")
             .with_type(PackageType::Bin)
-            .with_path_dependencies(vec![format!("../two")])
+            .with_path_dependencies(vec!["../two".to_string()])
             .with_workspace_member(),
         TestPackage::new("two")
             .with_type(PackageType::Lib)

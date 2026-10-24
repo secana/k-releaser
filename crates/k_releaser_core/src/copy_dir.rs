@@ -82,13 +82,13 @@ fn copy_directory(from: &Utf8Path, to: &Utf8PathBuf) -> Result<(), anyhow::Error
             create_symlink(&original_link, &destination).with_context(|| {
                 format!(
                     "cannot create symlink {:?} -> {:?}",
-                    &original_link, &destination
+                    original_link, destination
                 )
             })?;
         } else if file_type.is_file() {
             trace!("copying file {:?} to {:?}", entry.path(), &destination);
             fs_err::copy(entry.path(), &destination).with_context(|| {
-                format!("cannot copy file {:?} to {:?}", entry.path(), &destination)
+                format!("cannot copy file {:?} to {:?}", entry.path(), destination)
             })?;
         }
     }
