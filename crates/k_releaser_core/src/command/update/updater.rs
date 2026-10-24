@@ -531,10 +531,7 @@ impl Updater<'_> {
     /// Get ALL commits from the entire repository since the latest tag.
     /// This is used for unified workspace versioning where we don't filter by package paths.
     /// Uses `git describe --tags --abbrev=0` to find the most recent tag.
-    fn get_all_commits_since_latest_tag(
-        &self,
-        repository: &Repo,
-    ) -> anyhow::Result<Vec<Commit>> {
+    fn get_all_commits_since_latest_tag(&self, repository: &Repo) -> anyhow::Result<Vec<Commit>> {
         // Use git describe to find the most recent tag reachable from HEAD
         let commit_range = match repository.git(&["describe", "--tags", "--abbrev=0"]) {
             Ok(tag) => {
@@ -557,11 +554,7 @@ impl Updater<'_> {
         // from all branches that were merged, e.g., via `git pull` merge commits)
         // Use %B to get the full commit message (subject + body) which preserves
         // the blank line between subject and body that conventional commit parsers require.
-        let output = repository.git(&[
-            "log",
-            &commit_range,
-            "--format=%H%n%B%n--END-COMMIT--",
-        ])?;
+        let output = repository.git(&["log", &commit_range, "--format=%H%n%B%n--END-COMMIT--"])?;
 
         let mut commits = Vec::new();
         let mut seen_hashes = std::collections::HashSet::new();

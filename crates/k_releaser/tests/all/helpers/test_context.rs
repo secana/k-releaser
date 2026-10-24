@@ -119,7 +119,7 @@ impl TestContext {
         let root_cargo_toml = {
             let quoted_crates: Vec<String> = crates
                 .iter()
-                .map(|c| format!("\"{CRATES_DIR}/{}\"", &c.name))
+                .map(|c| format!("\"{CRATES_DIR}/{}\"", c.name))
                 .collect();
             let crates_list = quoted_crates.join(",");
             format!(

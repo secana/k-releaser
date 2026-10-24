@@ -503,7 +503,7 @@ async fn publish_package_to_registry(
     {
         if output.stderr.contains(&format!(
             "crate version `{}` is already uploaded",
-            &package.version,
+            package.version,
         )) {
             // The crate was published while `cargo publish` was running.
             info!(
@@ -614,8 +614,10 @@ fn get_cargo_registry(
         let index_url = u.as_str();
         let maybe_primary =
             SparseIndex::from_url_with_hash_kind(index_url, hash_kind).map(CargoIndex::Sparse);
-        let maybe_fallback = fallback_hash.map(|hash_kind| {
-            SparseIndex::from_url_with_hash_kind(index_url, &hash_kind).map(CargoIndex::Sparse)
+        let maybe_fallback = fallback_hash.and_then(|hash_kind| {
+            SparseIndex::from_url_with_hash_kind(index_url, &hash_kind)
+                .map(CargoIndex::Sparse)
+                .ok()
         });
 
         (maybe_primary, maybe_fallback)
@@ -623,8 +625,10 @@ fn get_cargo_registry(
         let index_url = format!("registry+{u}");
         let maybe_primary =
             GitIndex::from_url_with_hash_kind(&index_url, hash_kind).map(CargoIndex::Git);
-        let maybe_fallback = fallback_hash.map(|hash_kind| {
-            GitIndex::from_url_with_hash_kind(&index_url, &hash_kind).map(CargoIndex::Git)
+        let maybe_fallback = fallback_hash.and_then(|hash_kind| {
+            GitIndex::from_url_with_hash_kind(&index_url, &hash_kind)
+                .map(CargoIndex::Git)
+                .ok()
         });
 
         (maybe_primary, maybe_fallback)
@@ -632,12 +636,9 @@ fn get_cargo_registry(
 
     let primary_index = maybe_primary_index.context("failed to get cargo registry")?;
 
-    let fallback_index = match maybe_fallback_index {
-        // In cases where the primary index succeeds, the lookup should
-        // continue regardless of the state of the fallback index.
-        None | Some(Err(_)) => None,
-        Some(Ok(fallback_index)) => Some(fallback_index),
-    };
+    // In cases where the primary index succeeds, the lookup should
+    // continue regardless of the state of the fallback index.
+    let fallback_index = maybe_fallback_index;
 
     let registry = CargoRegistry {
         name: Some(registry),
