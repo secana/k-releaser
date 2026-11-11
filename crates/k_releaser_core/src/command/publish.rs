@@ -591,47 +591,63 @@ fn registry_indexes(
 
     let mut registry_indexes = registry_urls
         .into_iter()
-        .map(|(registry, u)| get_cargo_registry(hash_kind, registry, &u))
+        .map(|(registry, u)| get_cargo_registry(hash_kind, Some(registry), u.as_str()))
         .collect::<anyhow::Result<Vec<CargoRegistry>>>()?;
     if registry_indexes.is_empty() {
-        registry_indexes.push(CargoRegistry {
-            name: None,
-            index: CargoIndex::Git(GitIndex::new_cargo_default()?),
-            fallback_index: None,
-        });
+        registry_indexes.push(get_cargo_registry(
+            hash_kind,
+            None,
+            crates_index::sparse::URL,
+        )?);
     }
     Ok(registry_indexes)
 }
 
+/// The index to check whether a package is published. crates.io is checked
+/// through its sparse index, like cargo does by default. Polling its git
+/// index fetches into a full clone of it, and after enough fetches during one
+/// release gix fails with "The slotmap turned out to be too small".
+fn index_url(registry_url: &str) -> &str {
+    let is_crates_io_git =
+        registry_url.trim_end_matches('/').trim_end_matches(".git") == crates_index::git::URL;
+    if is_crates_io_git {
+        crates_index::sparse::URL
+    } else {
+        registry_url
+    }
+}
+
 fn get_cargo_registry(
     hash_kind: &crates_index::HashKind,
-    registry: String,
-    u: &Url,
+    registry: Option<String>,
+    registry_url: &str,
 ) -> anyhow::Result<CargoRegistry> {
     let fallback_hash = try_get_fallback_hash_kind(hash_kind);
 
-    let (maybe_primary_index, maybe_fallback_index) = if u.to_string().starts_with("sparse+") {
-        let index_url = u.as_str();
-        let maybe_primary =
-            SparseIndex::from_url_with_hash_kind(index_url, hash_kind).map(CargoIndex::Sparse);
-        let maybe_fallback = fallback_hash.and_then(|hash_kind| {
-            SparseIndex::from_url_with_hash_kind(index_url, &hash_kind)
-                .map(CargoIndex::Sparse)
-                .ok()
-        });
+    let (maybe_primary_index, maybe_fallback_index) = match index_url(registry_url) {
+        index_url if index_url.starts_with("sparse+") => {
+            let maybe_primary =
+                SparseIndex::from_url_with_hash_kind(index_url, hash_kind).map(CargoIndex::Sparse);
+            let maybe_fallback = fallback_hash.and_then(|hash_kind| {
+                SparseIndex::from_url_with_hash_kind(index_url, &hash_kind)
+                    .map(CargoIndex::Sparse)
+                    .ok()
+            });
 
-        (maybe_primary, maybe_fallback)
-    } else {
-        let index_url = format!("registry+{u}");
-        let maybe_primary =
-            GitIndex::from_url_with_hash_kind(&index_url, hash_kind).map(CargoIndex::Git);
-        let maybe_fallback = fallback_hash.and_then(|hash_kind| {
-            GitIndex::from_url_with_hash_kind(&index_url, &hash_kind)
-                .map(CargoIndex::Git)
-                .ok()
-        });
+            (maybe_primary, maybe_fallback)
+        }
+        index_url => {
+            let index_url = format!("registry+{index_url}");
+            let maybe_primary =
+                GitIndex::from_url_with_hash_kind(&index_url, hash_kind).map(CargoIndex::Git);
+            let maybe_fallback = fallback_hash.and_then(|hash_kind| {
+                GitIndex::from_url_with_hash_kind(&index_url, &hash_kind)
+                    .map(CargoIndex::Git)
+                    .ok()
+            });
 
-        (maybe_primary, maybe_fallback)
+            (maybe_primary, maybe_fallback)
+        }
     };
 
     let primary_index = maybe_primary_index.context("failed to get cargo registry")?;
@@ -641,7 +657,7 @@ fn get_cargo_registry(
     let fallback_index = maybe_fallback_index;
 
     let registry = CargoRegistry {
-        name: Some(registry),
+        name: registry,
         index: primary_index,
         fallback_index,
     };
@@ -735,6 +751,47 @@ Caused by:
   required by package `kellnr-web-ui v6.11.0 (/home/runner/work/kellnr/kellnr/crates/web-ui)`
 "#;
         assert!(is_stale_index_error(stderr));
+    }
+
+    #[test]
+    fn crates_io_is_checked_through_its_sparse_index() {
+        for url in [
+            "https://github.com/rust-lang/crates.io-index",
+            "https://github.com/rust-lang/crates.io-index/",
+            "https://github.com/rust-lang/crates.io-index.git",
+            "sparse+https://index.crates.io/",
+        ] {
+            assert_eq!("sparse+https://index.crates.io/", index_url(url), "{url}");
+        }
+    }
+
+    #[test]
+    fn other_registries_keep_their_index() {
+        for url in [
+            "https://github.com/example/crates-index",
+            "sparse+https://registry.example.com/index/",
+            "ssh://git@example.com/rust-lang/crates.io-index",
+        ] {
+            assert_eq!(url, index_url(url));
+        }
+    }
+
+    #[test]
+    fn crates_io_registry_uses_the_sparse_index() {
+        let hash_kind = crates_index::HashKind::Stable;
+
+        let registry = get_cargo_registry(
+            &hash_kind,
+            None,
+            "https://github.com/rust-lang/crates.io-index",
+        )
+        .unwrap();
+
+        assert!(matches!(registry.index, CargoIndex::Sparse(_)));
+        assert!(matches!(
+            registry.fallback_index,
+            Some(CargoIndex::Sparse(_))
+        ));
     }
 
     #[test]
